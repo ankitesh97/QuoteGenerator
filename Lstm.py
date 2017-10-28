@@ -94,11 +94,11 @@ class Lstm:
     def train(self):
         obj = preprocess()
         data = obj.load()
-        X = np.array(list(data.X_train[:])).astype(int)
-        y = np.array(list(data.y_train[:])).astype(int)
+        X = np.array(list(data.X_train[:]),dtype=np.int32).astype(int)
+        y = np.array(list(data.y_train[:]),dtype=np.int32).astype(int)
         if train_size != -1:
-            X = np.array(list(data.X_train[:train_size]))
-            y = np.array(list(data.y_train[:train_size]))
+            X = np.array(list(data.X_train[:train_size]),dtype=np.int32)
+            y = np.array(list(data.y_train[:train_size]),dtype=np.int32)
 
         print "Everything loaded starting training"
         sys.stdout.flush()

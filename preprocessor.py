@@ -6,16 +6,15 @@ import re
 import nltk
 import itertools
 import time
+import pandas as pd
 
 
 params = json.loads(open("params.json").read())
-link_to_replace_with = " https//examplearticle/exres/abcd.com "
-twitter_link_to_replace = " imgtwittercom/abcdxyz "
 VOCAB_SIZE = params['preprocess']['vocab_size']
 SENTENCE_START = 'SENTENCE_START'
 SENTENCE_END = 'SENTENCE_END'
 UNKNOWN_TOKEN = 'UNKNOWN_TOKEN'
-FILE_NAME = 'dataVectorizedv1.1'
+FILE_NAME = 'dataVectorizedv0.0'
 
 class preprocess():
 
@@ -42,10 +41,7 @@ class preprocess():
 
     def makeData(self):
         self.getData()
-        self.replaceAllLinks()
-        self.replaceTwitterLinks()
         self.makeXy()
-        self.splitData()
         self.equalize()
 
 
@@ -55,42 +51,31 @@ class preprocess():
         return obj
 
     def getData(self):
+        dps = params["preprocess"]['total']
+        df = pd.read_csv('quotes.csv')
+        from_csv = list(np.array(df.get('quote')))
+        from_csv =  list(set(from_csv))
 
-        with open('pickledfiles/timesofindia.json', 'r') as f:
-            data = json.loads(f.read())[:params["preprocess"]["total"]]
-            l = len(data)
-            total = []
-            for entry in data:
-                total.append(entry["text"])
+        data = open('quotes.txt','r').read().split('\n')[:-1]
+        data = [x.split('\t')[-1] for x in data]
+        final = from_csv + data
+        data = list(set(final))
+        print len(data)
+        final = []
+        for i in range(len(data)):
+            data[i] = data[i].replace("'", " ' ")
+            data[i] = data[i].replace('"', ' " ')
+            data[i] = data[i].replace('.', ' . ')
+            data[i] = data[i].lower()
+            l = len(nltk.word_tokenize(data[i]))
+            if l<=50:
+                final.append(data[i])
 
-            np.random.shuffle(total)
-            self.data = total
-
-
-
-    def replaceAllLinks(self):
-        pattern = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-        compiled = re.compile(pattern)
-        cleaned_data = []
-        for sent in self.data:
-            cleaned_data.append(compiled.sub(link_to_replace_with,sent))
-
-        self.data = cleaned_data
-
-    def replaceTwitterLinks(self):
-
-        pattern = "[a-zA-z]+.twitter.com/[a-zA-Z0-9]+"
-        compiled = re.compile(pattern)
-        cleaned_data = []
-        for sent in self.data:
-            cleaned_data.append(compiled.sub(twitter_link_to_replace,sent))
-
-        self.data = cleaned_data
+        print "total dp " + str(len(final))
+        self.data = final[:dps]
 
     def makeXy(self):
         train = []
-        test = []
-        validate = []
         data = []
         #add start token and end token
         for sent in self.data:
@@ -133,52 +118,21 @@ class preprocess():
             X.append(self.word_to_index[tokenized[i]])
             y.append(self.word_to_index[tokenized[i+1]])
 
-        return np.array(X),np.array(y)
+        return np.array(X,dtype=np.int32),np.array(y,dtype=np.int32)
 
-    def splitData(self):
-        total = len(self.X)
-        n_train = int(float(params['preprocess']['train']) * total)
-        n_test = int(float(params['preprocess']['train']) * total)
-
-        self.X_train = self.X[:n_train]
-        self.X_test = self.X[n_train:n_train+n_test]
-        self.X_validate = self.X[n_train+n_test:]
-
-        self.y_train = self.y[:n_train]
-        self.y_test = self.y[n_train:n_train+n_test]
-        self.y_validate = self.y[n_train+n_test:]
 
     def equalize(self):
         # print self.word_to_index
         max_l = 0
-        for x in self.X_train:
+        for x in self.X:
             max_l = max(len(x),max_l)
         end = self.word_to_index["SENTENCE_END"]
-        for i in range(len(self.X_train)):
-            l = max_l - len(self.X_train[i])
+        for i in range(len(self.X)):
+            l = max_l - len(self.X[i])
             to_append = [end]*l
-            self.X_train[i] = np.concatenate((self.X_train[i],to_append))
-            self.y_train[i] = np.concatenate((self.y_train[i],to_append))
+            self.X[i] = np.concatenate((self.X[i],to_append))
+            self.y[i] = np.concatenate((self.y[i],to_append))
 
-        max_l = 0
-        for x in self.X_test:
-            max_l = max(len(x),max_l)
-
-        for i in range(len(self.X_test)):
-            l = max_l - len(self.X_test[i])
-            to_append = [end]*l
-            self.X_test[i] = np.concatenate((self.X_test[i],to_append))
-            self.y_test[i] = np.concatenate((self.y_test[i],to_append))
-
-        max_l = 0
-        for x in self.X_validate:
-            max_l = max(len(x),max_l)
-
-        for i in range(len(self.X_validate)):
-            l = max_l - len(self.X_validate[i])
-            to_append = [end]*l
-            self.X_validate[i] = np.concatenate((self.X_validate[i],to_append))
-            self.y_validate[i] = np.concatenate((self.y_validate[i],to_append))
 
 
 
